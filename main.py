@@ -1,5 +1,7 @@
 import os
 import glob
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import (
     Update, 
     InlineKeyboardButton, 
@@ -18,18 +20,30 @@ from telegram.ext import (
 from telegram.error import TelegramError
 import yt_dlp
 
-# ================= تنظیمات =================
+# ================= سرور کوچک برای رفع خطای پورت رندر =================
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"Bot is running 24/7!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
+    server.serve_forever()
+# ===================================================================
+
+# ================= تنظیمات ربات =================
 BOT_TOKEN = "8812916816:AAFpXmZeswyVSYml1LN58AqG2Calbz-3TYQ"
 BOT_USERNAME = "downloadyoutube20bot"
 
-# کانال عضویت اجباری
 CHANNEL_USERNAME = "@zhuug"
 CHANNEL_LINK = "https://t.me/zhuug"
 
-# ربات‌های تبلیغاتی شما:
-GAME_BOT_LINK = "https://t.me/PassorBazBot"          # ربات بازی
-IMDB_BOT_LINK = "https://t.me/mafia12robot"         # ربات IMDb
-# ===========================================
+GAME_BOT_LINK = "https://t.me/PassorBazBot"
+IMDB_BOT_LINK = "https://t.me/mafia12robot"
+# ===============================================
 
 def is_youtube_url(url: str) -> bool:
     return any(d in url.lower() for d in ['youtube.com', 'youtu.be', 'm.youtube.com'])
@@ -180,6 +194,10 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
                 pass
 
 def main():
+    # روشن کردن سرور وب در پس‌زمینه برای راضی کردن رندر
+    server_thread = threading.Thread(target=run_dummy_server, daemon=True)
+    server_thread.start()
+
     print("ربات آنلاین شد...")
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start_command))
