@@ -2,17 +2,6 @@ import os
 import glob
 import asyncio
 import threading
-import os
-import tempfile
-
-def get_cookies_file():
-    cookies_str = os.environ.get('YT_COOKIES')
-    if not cookies_str:
-        return None
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
-        f.write(cookies_str)
-        return f.name
-        
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import (
     Update, 
@@ -67,8 +56,8 @@ GAME_BOT_LINK = "https://t.me/PassorBazBot"
 IMDB_BOT_LINK = "https://t.me/mafia12robot"
 # ===============================================
 
-def is_youtube_url(url: str) -> bool:
-    return any(d in url.lower() for d in ['youtube.com', 'youtu.be', 'm.youtube.com'])
+def is_soundcloud_url(url: str) -> bool:
+    return any(d in url.lower() for d in ['soundcloud.com', 'on.soundcloud.com'])
 
 async def is_user_member(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
@@ -92,8 +81,8 @@ def get_main_reply_keyboard():
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-def get_video_inline_keyboard():
-    share_url = f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=دانلود%20رایگان%20از%20یوتیوب%20🎬"
+def get_audio_inline_keyboard():
+    share_url = f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=دانلود%20رایگان%20آهنگ%20از%20ساندکلاد%20🎧"
     keyboard = [
         [InlineKeyboardButton("🎬 معرفی فیلم و نمره IMDb", url=IMDB_BOT_LINK)],
         [InlineKeyboardButton("🎮 بازی شطرنج، مار و دوز", url=GAME_BOT_LINK)],
@@ -111,7 +100,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text(
-        "🎬 سلام! لینک ویدیوی یوتیوب یا Shorts را بفرست تا دانلود کنم.",
+        "🎧 سلام! لینک آهنگ ساندکلاد (SoundCloud) را بفرست تا با بالاترین کیفیت دانلود کنم.",
         reply_markup=get_main_reply_keyboard()
     )
 
@@ -124,41 +113,29 @@ async def check_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.message.delete()
         await context.bot.send_message(
             chat_id=user_id,
-            text="✅ عضویت تایید شد! حالا لینک ویدیو را بفرستید 👇",
+            text="✅ عضویت تایید شد! حالا لینک آهنگ ساندکلاد را بفرستید 👇",
             reply_markup=get_main_reply_keyboard()
         )
     else:
         await query.answer("❌ هنوز عضو کانال نشده‌اید!", show_alert=True)
 
-def download_video_task(url: str, output_template: str):
-        cookies_file = get_cookies_file()
-    if cookies_file:
-        ydl_opts['cookiefile'] = cookies_file
+def download_audio_task(url: str, output_template: str):
     ydl_opts = {
-        'format': 'best[height<=720][ext=mp4]/best[height<=720]/best',
+        'format': 'bestaudio/best',
         'outtmpl': output_template,
         'max_filesize': 48 * 1024 * 1024,
         'quiet': True,
         'no_warnings': True,
         'socket_timeout': 30,
-        'merge_output_format': 'mp4',
         'noplaylist': True,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android_vr', 'tv_embedded', 'ios'],
-                'player_skip': ['webpage']
-            }
-        },
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        }
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
-        title = info.get('title', 'ویدیوی یوتیوب')
+        title = info.get('title', 'آهنگ ساندکلاد')
+        uploader = info.get('uploader', 'SoundCloud')
         filename = ydl.prepare_filename(info)
-        return title, filename
+        return title, uploader, filename
 
 async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -181,36 +158,38 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(f"📢 کانال ما:\n👉 {CHANNEL_LINK}")
         return
     elif text == "👥 ارسال به دوستان":
-        share_url = f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=دانلود%20رایگان%20از%20یوتیوب%20🎬"
+        share_url = f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=دانلود%20رایگان%20آهنگ%20از%20ساندکلاد%20🎧"
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("📤 اشتراک‌گذاری ربات", url=share_url)]])
         await update.message.reply_text("برای معرفی ربات به دوستان کلیک کنید:", reply_markup=kb)
         return
 
-    if not is_youtube_url(text):
-        await update.message.reply_text("❌ لطفاً فقط لینک یوتیوب ارسال کنید.")
+    if not is_soundcloud_url(text):
+        await update.message.reply_text("❌ لطفاً فقط لینک معتبر از ساندکلاد (SoundCloud) ارسال کنید.")
         return
 
-    status_msg = await update.message.reply_text("⏳ در حال دریافت ویدیو از یوتیوب...")
-    output_template = f"video_{user_id}_%(id)s.%(ext)s"
+    status_msg = await update.message.reply_text("⏳ در حال دریافت آهنگ از ساندکلاد...")
+    output_template = f"audio_{user_id}_%(id)s.%(ext)s"
 
     try:
-        # دانلود بدون بلاک کردن Event Loop
         loop = asyncio.get_running_loop()
-        title, video_file = await loop.run_in_executor(None, download_video_task, text, output_template)
+        title, uploader, audio_file = await loop.run_in_executor(None, download_audio_task, text, output_template)
 
         caption = (
-            f"🎬 {title}\n\n"
+            f"🎧 {title}\n"
+            f"👤 خواننده/سازنده: {uploader}\n\n"
             f"⚡ دانلودر: @{BOT_USERNAME}\n"
             f"♟ بازی‌ها: @PassorBazBot\n"
             f"📢 کانال ما: {CHANNEL_USERNAME}"
         )
 
-        await status_msg.edit_text("📤 در حال ارسال به تلگرام...")
-        with open(video_file, 'rb') as vf:
-            await update.message.reply_video(
-                video=vf,
+        await status_msg.edit_text("📤 در حال ارسال موزیک به تلگرام...")
+        with open(audio_file, 'rb') as af:
+            await update.message.reply_audio(
+                audio=af,
+                title=title[:60],
+                performer=uploader[:60],
                 caption=caption,
-                reply_markup=get_video_inline_keyboard()
+                reply_markup=get_audio_inline_keyboard()
             )
         await status_msg.delete()
 
@@ -218,18 +197,18 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         err = str(e)
         print(f"Error: {err}")
         if "max_filesize" in err.lower() or "too large" in err.lower():
-            await status_msg.edit_text("❌ حجم ویدیو بالای ۵۰ مگابایت است و قابل ارسال نیست.")
+            await status_msg.edit_text("❌ حجم فایل بالای ۴۸ مگابایت است.")
         else:
-            await status_msg.edit_text(f"❌ خطا در پردازش ویدیو:\n{err[:250]}")
+            await status_msg.edit_text(f"❌ خطا در دانلود موزیک:\n{err[:250]}")
     finally:
-        for f in glob.glob(f"video_{user_id}_*"):
+        for f in glob.glob(f"audio_{user_id}_*"):
             try:
                 os.remove(f)
             except:
                 pass
 
 def main():
-    # ۱. اجرای وب‌سرور سبک در پس‌زمینه برای پاس کردن سلامت سرویس رندر
+    # ۱. اجرای وب‌سرور برای زنده نگه داشتن رندر
     health_thread = threading.Thread(target=start_health_server, daemon=True)
     health_thread.start()
 
