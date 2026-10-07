@@ -131,14 +131,15 @@ def download_video_task(url: str, output_template: str):
         'noplaylist': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['tv_embedded', 'web_embedded', 'ios'],
+                'player_client': ['android_vr', 'tv_embedded', 'ios'],
                 'player_skip': ['webpage']
             }
         },
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (SmartHub; SMART-TV; U; Linux/SmartTV; Maple2012) AppleWebKit/534.7 (KHTML, like Gecko) SmartTV Safari/536.2'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         }
     }
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         title = info.get('title', 'ویدیوی یوتیوب')
