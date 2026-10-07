@@ -126,13 +126,16 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
     status_msg = await update.message.reply_text("⏳ در حال دریافت ویدیو از یوتیوب...")
     output_template = f"video_{user_id}_%(id)s.%(ext)s"
+    
     ydl_opts = {
-        'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]/best',
+        'format': 'best[height<=720][ext=mp4]/best[height<=720]/best',
         'outtmpl': output_template,
         'max_filesize': 48 * 1024 * 1024,
         'quiet': True,
         'no_warnings': True,
         'socket_timeout': 30,
+        'merge_output_format': 'mp4',
+        'noplaylist': True,
         'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
     }
 
