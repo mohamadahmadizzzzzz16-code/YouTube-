@@ -136,7 +136,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         'socket_timeout': 30,
         'merge_output_format': 'mp4',
         'noplaylist': True,
-        'cookiefile': 'cookies.txt', 
+        'cookiefile': 'cookies.txt',
         'extractor_args': {
             'youtube': {
                 'player_client': ['tv_embedded', 'web_embedded', 'ios'],
