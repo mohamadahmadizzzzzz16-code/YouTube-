@@ -28,7 +28,7 @@ CHANNEL_LINK = "https://t.me/zhuug"
 
 # ربات‌های تبلیغاتی شما:
 GAME_BOT_LINK = "https://t.me/PassorBazBot"          # ربات بازی
-IMDB_BOT_LINK = "@mafia12robot"        # 👈 آیدی ربات IMDb خودت را اینجا بگذار
+IMDB_BOT_LINK = "https://t.me/mafia12robot"         # ربات IMDb
 # ===========================================
 
 def is_youtube_url(url: str) -> bool:
@@ -126,28 +126,27 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
     status_msg = await update.message.reply_text("⏳ در حال دریافت ویدیو از یوتیوب...")
     output_template = f"video_{user_id}_%(id)s.%(ext)s"
-    
-        ydl_opts = {
-            'format': 'best[height<=720][ext=mp4]/best[height<=720]/best',
-            'outtmpl': output_template,
-            'max_filesize': 48 * 1024 * 1024,
-            'quiet': True,
-            'no_warnings': True,
-            'socket_timeout': 30,
-            'merge_output_format': 'mp4',
-            'noplaylist': True,
-            'cookiefile': 'cookies.txt',
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['tv_embedded', 'web_embeded', 'ios'],
-                    'player_skip': ['webpage']
-                }
-            },
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (SmartHub; SMART-TV; U; Linux/SmartTV; Maple2012) AppleWebKit/534.7 (KHTML, like GitHub) SmartTV Safari/536.2'
-            }
-        }
 
+    ydl_opts = {
+        'format': 'best[height<=720][ext=mp4]/best[height<=720]/best',
+        'outtmpl': output_template,
+        'max_filesize': 48 * 1024 * 1024,
+        'quiet': True,
+        'no_warnings': True,
+        'socket_timeout': 30,
+        'merge_output_format': 'mp4',
+        'noplaylist': True,
+        'cookiefile': 'cookies.txt',
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['tv_embedded', 'web_embedded', 'ios'],
+                'player_skip': ['webpage']
+            }
+        },
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (SmartHub; SMART-TV; U; Linux/SmartTV; Maple2012) AppleWebKit/534.7 (KHTML, like Gecko) SmartTV Safari/536.2'
+        }
+    }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
