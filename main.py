@@ -182,9 +182,9 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
                     reply_markup=get_video_inline_keyboard()
                 )
             await status_msg.delete()
-        except Exception as e:
-        print(f"Error: {e}")
-        await status_msg.edit_text(f"❌ خطا در دانلود:\n{str(e)[:300]}")
+     except Exception as e:  
+     print(f"Error: {e}")
+     await status_msg.edit_text(f"❌ خطا در دانلود:\n{str(e)[:300]}")
 
     finally:
         for f in glob.glob(f"video_{user_id}_*"):
