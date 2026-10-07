@@ -127,7 +127,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
     status_msg = await update.message.reply_text("⏳ در حال دریافت ویدیو از یوتیوب...")
     output_template = f"video_{user_id}_%(id)s.%(ext)s"
     
-    ydl_opts = {
+        ydl_opts = {
         'format': 'best[height<=720][ext=mp4]/best[height<=720]/best',
         'outtmpl': output_template,
         'max_filesize': 48 * 1024 * 1024,
@@ -136,8 +136,17 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         'socket_timeout': 30,
         'merge_output_format': 'mp4',
         'noplaylist': True,
-        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['tv_embedded', 'web_embedded', 'ios'],
+                'player_skip': ['configs', 'webpage']
+            }
+        },
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (SmartHub; SMART-TV; U; Linux/SmartTV; Maple2012) AppleWebKit/534.7 (KHTML, like Gecko) SmartTV Safari/534.7',
+        }
     }
+
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
