@@ -2,6 +2,17 @@ import os
 import glob
 import asyncio
 import threading
+import os
+import tempfile
+
+def get_cookies_file():
+    cookies_str = os.environ.get('YT_COOKIES')
+    if not cookies_str:
+        return None
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+        f.write(cookies_str)
+        return f.name
+        
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import (
     Update, 
@@ -120,6 +131,9 @@ async def check_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ هنوز عضو کانال نشده‌اید!", show_alert=True)
 
 def download_video_task(url: str, output_template: str):
+        cookies_file = get_cookies_file()
+    if cookies_file:
+        ydl_opts['cookiefile'] = cookies_file
     ydl_opts = {
         'format': 'best[height<=720][ext=mp4]/best[height<=720]/best',
         'outtmpl': output_template,
