@@ -30,7 +30,7 @@ from telegram.ext import (
 # تنظیمات عمومی
 # ==================================================
 
-BOT_TOKEN = os.environ.get("8812916816:AAFpXmZeswyVSYml1LN58AqG2Calbz-3TYQ")
+BOT_TOKEN = ("8812916816:AAFpXmZeswyVSYml1LN58AqG2Calbz-3TYQ")
 BOT_USERNAME = "downloadyoutube20bot"
 
 CHANNEL_USERNAME = "@zhuug"
