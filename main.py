@@ -1,7 +1,5 @@
 import os
 import glob
-import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import (
     Update, 
     InlineKeyboardButton, 
@@ -20,144 +18,151 @@ from telegram.ext import (
 from telegram.error import TelegramError
 import yt_dlp
 
-# ================= سرور کوچک برای رفع خطای پورت رندر =================
-class SimpleHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(b"Bot is running 24/7!")
-
-def run_dummy_server():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
-    server.serve_forever()
-# ===================================================================
-
-# ================= تنظیمات ربات =================
+# ================= تنظیمات اصلی =================
 BOT_TOKEN = "8812916816:AAFpXmZeswyVSYml1LN58AqG2Calbz-3TYQ"
 BOT_USERNAME = "downloadyoutube20bot"
-
 CHANNEL_USERNAME = "@zhuug"
 CHANNEL_LINK = "https://t.me/zhuug"
-
 GAME_BOT_LINK = "https://t.me/PassorBazBot"
-IMDB_BOT_LINK = "https://t.me/mafia12robot"
 # ===============================================
 
 def is_youtube_url(url: str) -> bool:
-    return any(d in url.lower() for d in ['youtube.com', 'youtu.be', 'm.youtube.com'])
+    youtube_domains = ['youtube.com', 'youtu.be', 'm.youtube.com']
+    return any(domain in url.lower() for domain in youtube_domains)
 
 async def is_user_member(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
         member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
-        return member.status in ['creator', 'administrator', 'member']
+        if member.status in ['creator', 'administrator', 'member']:
+            return True
+        return False
     except TelegramError as e:
-        print(f"Error checking member: {e}")
+        print(f"خطا در بررسی عضویت: {e}")
         return False
 
 def get_join_keyboard():
-    return InlineKeyboardMarkup([
+    keyboard = [
         [InlineKeyboardButton("📢 عضویت در کانال", url=CHANNEL_LINK)],
         [InlineKeyboardButton("✅ عضو شدم (بررسی مجدد)", callback_data="check_join")]
-    ])
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 def get_main_reply_keyboard():
+    """کیبورد پایین صفحه همراه با دکمه شروع مجدد"""
     keyboard = [
         [KeyboardButton("🔄 شروع مجدد")],
-        [KeyboardButton("🎬 ربات فیلم و سریال (IMDb)"), KeyboardButton("🎮 ربات بازی‌ها")],
-        [KeyboardButton("📢 کانال اصلی"), KeyboardButton("👥 ارسال به دوستان")]
+        [KeyboardButton("🎮 ورود به ربات بازی‌ها"), KeyboardButton("📢 کانال اصلی")],
+        [KeyboardButton("ℹ️ راهنمای دانلود"), KeyboardButton("👥 ارسال به دوستان")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 def get_video_inline_keyboard():
-    share_url = f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=دانلود%20رایگان%20از%20یوتیوب%20🎬"
+    share_url = f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=بهترین%20ربات%20دانلود%20رایگان%20از%20یوتیوب%20🎬"
     keyboard = [
-        [InlineKeyboardButton("🎬 معرفی فیلم و نمره IMDb", url=IMDB_BOT_LINK)],
-        [InlineKeyboardButton("🎮 بازی شطرنج، مار و دوز", url=GAME_BOT_LINK)],
-        [InlineKeyboardButton("📢 عضویت در کانال", url=CHANNEL_LINK), InlineKeyboardButton("🔄 اشتراک‌گذاری", url=share_url)]
+        [InlineKeyboardButton("🎮 بازی شطرنج، مار و دوز (رایگان)", url=GAME_BOT_LINK)],
+        [
+            InlineKeyboardButton("📢 عضویت در کانال", url=CHANNEL_LINK),
+            InlineKeyboardButton("🔄 ارسال به دوستان", url=share_url)
+        ]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if not await is_user_member(user_id, context):
-        await update.message.reply_text(
-            "سلام! برای استفاده رایگان لطفاً ابتدا عضو کانال ما شوید و سپس «عضو شدم» را بزنید:",
-            reply_markup=get_join_keyboard()
+    
+    is_member = await is_user_member(user_id, context)
+    if not is_member:
+        msg_text = (
+            "سلام! خوش آمدید 🌸\n\n"
+            "⚠️ برای استفاده رایگان از ربات، لطفاً ابتدا عضو کانال زیر شوید، "
+            "سپس دکمه «عضو شدم» را بزنید:"
         )
+        await update.message.reply_text(msg_text, reply_markup=get_join_keyboard())
         return
 
-    await update.message.reply_text(
-        "🎬 سلام! لینک ویدیوی یوتیوب یا Shorts را بفرست تا دانلود کنم.",
-        reply_markup=get_main_reply_keyboard()
+    welcome_text = (
+        "سلام! به ربات دانلود از یوتیوب خوش آمدید 🎬\n\n"
+        "🔗 کافیست لینک ویدیو یا Shorts یوتیوب را بفرستید تا سریع برایتان دانلود شود."
     )
+    await update.message.reply_text(welcome_text, reply_markup=get_main_reply_keyboard())
 
 async def check_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
 
-    if await is_user_member(user_id, context):
+    is_member = await is_user_member(user_id, context)
+    if is_member:
         await query.message.delete()
         await context.bot.send_message(
             chat_id=user_id,
-            text="✅ عضویت تایید شد! حالا لینک ویدیو را بفرستید 👇",
+            text="✅ عضویت شما تایید شد!\n\nحالا لینک ویدیوی یوتیوب را بفرستید 👇",
             reply_markup=get_main_reply_keyboard()
         )
     else:
-        await query.answer("❌ هنوز عضو کانال نشده‌اید!", show_alert=True)
+        await query.answer("❌ هنوز عضو کانال نشده‌اید! ابتدا عضو شوید و سپس دکمه را بزنید.", show_alert=True)
 
 async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
 
-    if not await is_user_member(user_id, context):
-        await update.message.reply_text("⚠️ اول باید عضو کانال باشید:", reply_markup=get_join_keyboard())
-        return
+    # ۱. بررسی عضویت در کانال
+    async def is_user_member(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    try:
+        member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        return member.status in ['creator', 'administrator', 'member']
+    except TelegramError as e:
+        print(f"❌ خطای بررسی عضویت: {e}")
+        print("👉 اگر نوشته 'not enough rights' یعنی ربات ادمین کانال نشده.")
+        print("👉 اگر نوشته 'chat not found' یعنی CHANNEL_USERNAME اشتباه است.")
+        return False
 
-    if text in ["🔄 شروع مجدد", "/start", "start"]:
+    # ۲. دکمه شروع مجدد
+    if text in ["🔄 شروع مجدد", "/start", "start", "شروع"]:
         await start_command(update, context)
         return
-    elif text == "🎬 ربات فیلم و سریال (IMDb)":
-        await update.message.reply_text(f"🍿 ربات جستجوی مشخصات فیلم و سریال:\n👉 {IMDB_BOT_LINK}")
+
+    elif text == "🎮 ورود به ربات بازی‌ها":
+        await update.message.reply_text(f"🎲 برای بازی شطرنج، مار، دوز و... وارد ربات زیر شوید:\n\n👉 {GAME_BOT_LINK}")
         return
-    elif text == "🎮 ربات بازی‌ها":
-        await update.message.reply_text(f"🎲 ربات بازی‌های تلگرامی ما:\n👉 {GAME_BOT_LINK}")
-        return
+
     elif text == "📢 کانال اصلی":
-        await update.message.reply_text(f"📢 کانال ما:\n👉 {CHANNEL_LINK}")
+        await update.message.reply_text(f"📢 کانال رسمی ما:\n👉 {CHANNEL_LINK}")
         return
+
+    elif text == "ℹ️ راهنمای دانلود":
+        guide_text = (
+            "📖 راهنما:\n\n"
+            "۱. در یوتیوب گزینه Share (اشتراک‌گذاری) را بزنید و Copy link را انتخاب کنید.\n"
+            "۲. لینک را داخل این ربات بفرستید تا ویدیو بلافاصله ارسال شود."
+        )
+        await update.message.reply_text(guide_text)
+        return
+
     elif text == "👥 ارسال به دوستان":
-        share_url = f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=دانلود%20رایگان%20از%20یوتیوب%20🎬"
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("📤 اشتراک‌گذاری ربات", url=share_url)]])
-        await update.message.reply_text("برای معرفی ربات به دوستان کلیک کنید:", reply_markup=kb)
+        share_url = f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=دانلود%20رایگان%20و%20سریع%20فیلم%20از%20یوتیوب%20🎬"
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("📤 اشتراک‌گذاری با دوستان", url=share_url)]])
+        await update.message.reply_text("برای معرفی ربات به دوستان روی دکمه زیر بزنید:", reply_markup=kb)
         return
 
+    # ۳. دانلود یوتیوب
     if not is_youtube_url(text):
-        await update.message.reply_text("❌ لطفاً فقط لینک یوتیوب ارسال کنید.")
+        await update.message.reply_text("❌ لطفاً یک لینک معتبر از یوتیوب بفرستید یا از دکمه‌های زیر استفاده کنید.")
         return
 
-    status_msg = await update.message.reply_text("⏳ در حال دریافت ویدیو از یوتیوب...")
-    output_template = f"video_{user_id}_%(id)s.%(ext)s"
+    status_msg = await update.message.reply_text("⏳ در حال دریافت و آماده‌سازی ویدیو از یوتیوب...")
 
+    output_template = f"video_{user_id}_%(id)s.%(ext)s"
     ydl_opts = {
-        'format': 'best[height<=720][ext=mp4]/best[height<=720]/best',
+        'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]/best',
         'outtmpl': output_template,
         'max_filesize': 48 * 1024 * 1024,
         'quiet': True,
         'no_warnings': True,
         'socket_timeout': 30,
-        'merge_output_format': 'mp4',
-        'noplaylist': True,
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['tv_embedded', 'web_embedded', 'ios'],
-                'player_skip': ['webpage']
-            }
-        },
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (SmartHub; SMART-TV; U; Linux/SmartTV; Maple2012) AppleWebKit/534.7 (KHTML, like Gecko) SmartTV Safari/536.2'
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
         }
     }
 
@@ -169,12 +174,12 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
             caption = (
                 f"🎬 {title}\n\n"
-                f"⚡ دانلودر: @{BOT_USERNAME}\n"
-                f"♟ بازی‌ها: @PassorBazBot\n"
-                f"📢 کانال ما: {CHANNEL_USERNAME}"
+                f"⚡ دانلود رایگان: @{BOT_USERNAME}\n"
+                f"♟ ربات بازی شطرنج و مار: @PassorBazBot\n"
+                f"📢 کانال اصلی: {CHANNEL_USERNAME}"
             )
 
-            await status_msg.edit_text("📤 در حال ارسال به تلگرام...")
+            await status_msg.edit_text("📤 در حال ارسال ویدیو...")
             with open(video_file, 'rb') as vf:
                 await update.message.reply_video(
                     video=vf,
@@ -182,9 +187,10 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
                     reply_markup=get_video_inline_keyboard()
                 )
             await status_msg.delete()
-     except Exception as e:  
-     print(f"Error: {e}")
-     await status_msg.edit_text(f"❌ خطا در دانلود:\n{str(e)[:300]}")
+
+    except Exception as e:
+        print(f"Error: {e}")
+        await status_msg.edit_text("❌ خطا در دریافت ویدیو! لطفاً دوباره امتحان کنید.")
 
     finally:
         for f in glob.glob(f"video_{user_id}_*"):
@@ -194,15 +200,13 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
                 pass
 
 def main():
-    # روشن کردن سرور وب در پس‌زمینه برای راضی کردن رندر
-    server_thread = threading.Thread(target=run_dummy_server, daemon=True)
-    server_thread.start()
-
-    print("ربات آنلاین شد...")
+    print("ربات روشن شد...")
     app = Application.builder().token(BOT_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(check_join_callback, pattern="^check_join$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
+
     app.run_polling()
 
 if __name__ == '__main__':
